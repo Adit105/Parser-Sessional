@@ -22,11 +22,13 @@ FILE* input;
 ofstream log;
 ofstream error;
 
-int scopeTablesSize = 10;
+//int scopeTablesSize = 10;
 
 //Root scopetable for global scope, with new SymbolTable
-ScopeTable* scopeTable = new ScopeTable(scopeTablesSize);
-SymbolTable* symbolTable = new SymbolTable(scopeTable, scopeTablesSize, logStream);
+//ScopeTable* scopeTable = new ScopeTable(scopeTablesSize);
+//SymbolTable* symbolTable = new SymbolTable(scopeTable, scopeTablesSize, logStream);
+
+SymbolTable* symbolTable;
 
 /* auxiliary variables and structures and containers */
 string type, type_final;  // basially for function declaration-definition
@@ -753,58 +755,62 @@ variable: ID {
         ;
 	 
 expression: logic_expression {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " expression: logic_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required -> NOTICE: think about void function */
-            $$->set_Type($1->get_Type());
-            type = $1->get_Type();
+            $$->setReturnType($1->getReturnType());
+            type = $1->getReturnType();
     }
         | variable ASSIGNOP logic_expression {
-            $$ = new SymbolInfo((string)$1->getName()+(string)" = "+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " expression: variable ASSIGNOP logic_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)" = "+(string)$3->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
-            if($3->get_Type() == "void") {
+            if($3->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
 
                 /* type setting (if necessary) */
-                $3->set_Type("float");  // by default, float type
+                $3->setReturnType("float");  // by default, float type
             } 
 
             /* checking type consistency */
-            if($1->get_Type() != $3->get_Type()) {
+            if($1->getReturnType() != $3->getReturnType()) {
                 error << "Error at line no: " << line_count << " type mismatch(" << $1->get_Type() << "=" << $3->get_Type() << ")" << "\n" << endl;
                 error_count++;
             }
 
             /* type setting */
-            $$->set_Type($1->get_Type());
-            type = $1->get_Type();
+            $$->setReturnType($1->getReturnType());
+            type = $1->getReturnType();
     }
-        ;
+    ;
 			
 logic_expression: rel_expression {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " logic_expression: rel_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required */
-            $$->set_Type($1->get_Type());
+            $$->setReturnType($1->getReturnType());
     }
         | rel_expression LOGICOP rel_expression {
-            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " logic_expression: rel_expression LOGICOP rel_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) might be required */
 
             /* void checking  */
-            if($1->get_Type() == "void") {
+            if($1->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
@@ -812,7 +818,7 @@ logic_expression: rel_expression {
                 /* type setting (if necessary) */
             } 
 
-            if($3->get_Type() == "void") {
+            if($3->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
@@ -821,27 +827,29 @@ logic_expression: rel_expression {
             }
 
             /* type casting */
-            $$->set_Type("int");
+            $$->setReturnType("int");
     }
         ;
 			
 rel_expression: simple_expression {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " rel_expression: simple_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required */
-            $$->set_Type($1->get_Type());
+            $$->setReturnType($1->getReturnType());
     }
 		| simple_expression RELOP simple_expression	{
-            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " rel_expression: simple_expression RELOP simple_expression" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) might be required */
 
             /* void checking  */
-            if($1->get_Type() == "void") {
+            if($1->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
@@ -849,7 +857,7 @@ rel_expression: simple_expression {
                 /* type setting (if necessary) */
             } 
 
-            if($3->get_Type() == "void") {
+            if($3->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
@@ -858,52 +866,54 @@ rel_expression: simple_expression {
             }
 
             /* type csting */
-            $$->set_Type("int");
+            $$->setReturnType("int");
     }
 		;
 				
 simple_expression: term {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " simple_expression: term" << "\n"  << endl;
+
+            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl; 
 
             /* type setting  */
-            $$->set_Type($1->get_Type());
+            $$->setReturnType($1->get_Type());
     }
         | simple_expression ADDOP term {
-            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " simple_expression: simple_expression ADDOP term" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) required  */
 
             /* void checking  */
-            if($1->get_Type() == "void") {
+            if($1->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
 
                 /* type setting (if necessary) */
-                 $1->set_Type("float");  // by default, float type
+                 $1->setReturnType("float");  // by default, float type
             } 
 
-            if($3->get_Type() == "void") {
+            if($3->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
 
                 /* type setting (if necessary) */
-                $3->set_Type("float");  // by default, float type
+                $3->setReturnType("float");  // by default, float type
             }
 
             /* type setting (with type casting if required) */
-            if($1->get_Type()=="float" || $3->get_Type()=="float") {
-                $$->set_Type("float");
+            if($1->getReturnType()=="float" || $3->getReturnType()=="float") {
+                $$->setReturnType("float");
             } else {
-                $$->set_Type($1->get_Type());  // basically, int
+                $$->setReturnType($1->getReturnType());  // basically, int
             }
     }
-        ;
+    ;
 					
 term: unary_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
@@ -1176,7 +1186,7 @@ arguments: arguments COMMA logic_expression {
 
 int main(int argc, char* argv[]) {
 	if(argc != 2) {
-		cout << "input file name not provided, terminating program..." << endl;
+		cout << "Input file name not provided for parsing." << endl;
 		return 0;
 	}
 
@@ -1184,35 +1194,37 @@ int main(int argc, char* argv[]) {
 
     if(input == NULL) {
 		cout << "input file not opened properly, terminating program..." << endl;
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
-	log.open("1605023_log.txt", ios::out);
-	error.open("1605023_error.txt", ios::out);
+	log.open("2005105_log.txt", ios::out);
+	error.open("2005105_error.txt", ios::out);
 	
 	if(log.is_open() != true) {
-		cout << "log file not opened properly, terminating program..." << endl;
+		cout << "Log file not available" << endl;
 		fclose(input);
 		
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 	
 	if(error.is_open() != true) {
-		cout << "error file not opened properly, terminating program..." << endl;
+		cout << "Error file not available" << endl;
 		fclose(input);
 		log.close();
 		
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 	
-	symbolTable->enterScope(scope_count++, 7, log);   // #bucket_in_each_scopeTable = 7
+    int scopeTablesSize = 10;
+	ScopeTable* scopeTable = new ScopeTable(scopeTablesSize);
+    symbolTable = new SymbolTable(scopeTable, scopeTablesSize, logStream);
 	
 	yyin = input;
     yyparse();  // processing starts
 
     log << endl;
-	symbolTable->printAll(log);
-	symbolTable->exitScope(log);
+	symbolTable->printAllScopeTable(log);
+	symbolTable->ExitScope();
 
 	log << "Total Lines: " << (--line_count) << endl;  // NOTICE here: line_count changed (July 19) -> works for sample
 	log << "\n" << "Total Errors: " << error_count << endl;
