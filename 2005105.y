@@ -37,7 +37,8 @@ struct var{
     int var_size;  // it is set to -1 for variables
 } temp_var;
 
-vector<var> var_list;  // for identifier(variable, array) insertion into symbolTable
+vector<var> var_list;  /* for identifier(variable, array) insertion into symbolTable */
+string tempTypeSpecifier; // Holds type specifier temporarily while variable declaration;
 
 Parameter tempParameter; //Holds parameter temporarily before pushing into parameter List
 vector<Parameter> parameterList;  // parameter list for identifiers such as function declaration, definition
@@ -390,11 +391,20 @@ embedded_in: {
     ;
  		    
 var_declaration: type_specifier declaration_list SEMICOLON {
-            $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " var_declaration: type_specifier declaration_list SEMICOLON" << "\n"  << endl;
-            log << (string)$1->getName()+(string)" "+(string)$2->getName()+(string)";" << "\n"  << endl;
 
-            /* NOTICE: symbolTable insertion*/
+            $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
+            log << $$->getName();  << endl;
+
+            tempTypeSpecifier = (string)$1->getName();
+            if(tempTypeSpecifier == "void"){
+                error << "Error at line no: " << line_count << " variable type can not be void " << "\n" << endl;
+                error_count++;
+
+                tempTypeSpecifier = "float"; //by default, void type specifier, mistakenly provided, will be converted to floats
+            }
+
+            /* //NOTICE: symbolTable insertion
             if($1->getName() == "void") {
                 error << "Error at line no: " << line_count << " variable type can not be void " << "\n" << endl;
                 error_count++;
@@ -402,15 +412,17 @@ var_declaration: type_specifier declaration_list SEMICOLON {
                 for(int i=0; i<var_list.size(); i++) {
                     insertVariable("float", var_list[i]);  // NOTICE: by default, void type variables are float type
                 }
-            } else {
+            } 
+            else {
                 for(int i=0; i<var_list.size(); i++) {
                     insertVariable((string)$1->getName(), var_list[i]);
                 }
             }
 
             var_list.clear();
+            */
     }
- 		;
+ 	;
  		 
 type_specifier: INT {
             //$$ = new SymbolInfo("int", "NON_TERMINAL");
@@ -441,160 +453,190 @@ id: ID {
     }
     ;
  		
-declaration_list: declaration_list COMMA id {
-            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName(), "NON_TERMINAL");
+declaration_list: declaration_list COMMA ID {
             log << "At line no: " << line_count << " declaration_list: declaration_list COMMA ID" << "\n"  << endl;
-            log << (string)$1->getName()+(string)" , "+(string)$3->getName() << "\n"  << endl;
 
-            /* keeping track of identifier(variable) */
+            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName(), "NON_TERMINAL");
+            log << $$->getName() << endl;
+
+            string variableName = (string)$3->getName();
+
+            // Checking if variable was previously declared
+            SymbolInfo* lookupNode = symbolTable->Lookup(variableName);
+
+            if(lookupNode != NULL) {
+                error << "Error at line no: " << line_count << " multiple declaration of " << variableName << "\n" << endl;
+                error_count++;
+            }
+
+            insertVariable(tempTypeSpecifier, variableName, -1); //-1 will be set as arraySize for denoting variable as identifier
+
+            /* //keeping track of identifier(variable) 
             temp_var.var_name = (string)$3->getName();
             temp_var.var_size = -1;
 
             var_list.push_back(temp_var);
+            */
+    }
+ 		| declaration_list COMMA ID LTHIRD CONST_INT RTHIRD {
+            log << "At line no: " << line_count << " declaration_list: declaration_list COMMA ID LTHIRD CONST_INT RTHIRD" << "\n"  << endl;
 
-            /* checking whether already declared or not */
-            SymbolInfo* temp = symbolTable->lookUp($3->getName());
+            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName()+(string)"["+(string)$5->getName()+(string)"]", "NON_TERMINAL");
+            log << $$->getName() << endl;
 
-            if(temp != NULL) {
-                error << "Error at line no: " << line_count << " multiple declaration of " << $3->getName() << "\n" << endl;
+            string variableName = (string)$3->getName();
+            int variableSize = atoi( (string)$5->getName() );
+
+            // Checking if variable was previously declared
+            SymbolInfo* lookupNode = symbolTable->Lookup(variableName);
+
+            if(lookupNode != NULL) {
+                error << "Error at line no: " << line_count << " multiple declaration of " << variableName << "\n" << endl;
                 error_count++;
             }
-    }
- 		| declaration_list COMMA id LTHIRD CONST_INT RTHIRD {
-             /* array */
-            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName()+(string)"["+(string)$5->getName()+(string)"]", "NON_TERMINAL");
-            log << "At line no: " << line_count << " declaration_list: declaration_list COMMA ID LTHIRD CONST_INT RTHIRD" << "\n"  << endl;
-            log << (string)$1->getName()+(string)" , "+(string)$3->getName()+(string)"["+(string)$5->getName()+(string)"]" << "\n"  << endl;
 
-            /* keeping track of identifier(array) */
+            insertVariable(tempTypeSpecifier, variableName, variableSize); //variableSize will be set as arraySize for array
+
+            /* //keeping track of identifier(array)
             temp_var.var_name = (string)$3->getName();
 
             stringstream temp_str((string) $5->getName());
             temp_str >> temp_var.var_size;
 
             var_list.push_back(temp_var);
+            */
+    }
+ 		| ID {
+            log << "At line no: " << line_count << " declaration_list: ID" << "\n"  << endl;
 
-            /* checking whether already declared or not */
-            SymbolInfo* temp = symbolTable->lookUp($3->getName());
+            //$$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
+            log << (string)$1->getName() << "\n"  << endl;
 
-            if(temp != NULL) {
-                error << "Error at line no: " << line_count << " multiple declaration of " << $3->getName() << "\n" << endl;
+            string variableName = (string)$3->getName();
+
+            // Checking if variable was previously declared
+            SymbolInfo* lookupNode = symbolTable->Lookup(variableName);
+
+            if(lookupNode != NULL) {
+                error << "Error at line no: " << line_count << " multiple declaration of " << variableName << "\n" << endl;
                 error_count++;
             }
-    }
- 		| id {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
-            log << "At line no: " << line_count << " declaration_list: ID" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;
 
-            /* keeping track of identifier(variable) */
+            insertVariable(tempTypeSpecifier, variableName, -1); //-1 will be set as arraySize for denoting variable as identifier
+
+            /* //keeping track of identifier(variable) 
             temp_var.var_name = (string)$1->getName();
             temp_var.var_size = -1;
 
             var_list.push_back(temp_var);
-
-            /* checking whether already declared or not */
-            SymbolInfo* temp = symbolTable->lookUp($1->getName());
-
-            if(temp != NULL) {
-                error << "Error at line no: " << line_count << " multiple declaration of " << $1->getName() << "\n" << endl;
-                error_count++;
-            }
+            */
     }
  		| id LTHIRD CONST_INT RTHIRD {
-             /* array */
-            $$ = new SymbolInfo((string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]", "NON_TERMINAL");
             log << "At line no: " << line_count << " declaration_list: ID LTHIRD CONST_INT RTHIRD" << "\n"  << endl;
-            log << (string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]" << "\n"  << endl;
 
-            /* keeping track of identifier(array) */
+            $$ = new SymbolInfo((string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]", "NON_TERMINAL");
+            log << $$->getName() << endl;
+
+            string variableName = (string)$3->getName();
+            int variableSize = atoi( (string)$5->getName() );
+
+            // Checking if variable was previously declared
+            SymbolInfo* lookupNode = symbolTable->Lookup(variableName);
+
+            if(lookupNode != NULL) {
+                error << "Error at line no: " << line_count << " multiple declaration of " << variableName << "\n" << endl;
+                error_count++;
+            }
+
+            insertVariable(tempTypeSpecifier, variableName, variableSize); //variableSize will be set as arraySize for array
+
+            /* //keeping track of identifier(array) 
             temp_var.var_name = (string)$1->getName();
 
             stringstream temp_str((string) $3->getName());
             temp_str >> temp_var.var_size;
 
             var_list.push_back(temp_var);
-
-            /* checking whether already declared or not */
-            SymbolInfo* temp = symbolTable->lookUp($1->getName());
-
-            if(temp != NULL) {
-                error << "Error at line no: " << line_count << " multiple declaration of " << $1->getName() << "\n" << endl;
-                error_count++;
-            }
+            */
     }
- 		;
+ 	;
  		  
 statements: statement {
-            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " statements: statement" << "\n"  << endl;
-            log << (string)$1->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
 	    | statements statement {
-            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " statements: statements statement" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName(), "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
-	    ;
+	;
 	   
 statement: var_declaration {
-            $$ = new SymbolInfo((string)"\t"+(string)$1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: var_declaration" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)$1->getName(), "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | expression_statement {
-            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: expression_statement" << "\n"  << endl;
-            log << (string)$1->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | compound_statement {
-            $$ = new SymbolInfo((string)"\t"+(string)$1->getName()+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: compound_statement" << "\n"  << endl;
-            log << (string)$1->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)$1->getName()+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | FOR LPAREN expression_statement embedded_exp embedded_void expression_statement embedded_exp embedded_void expression embedded_exp embedded_void RPAREN statement {
-            /* for this loop, the output in log will be a bit distorted for adding +(string)"\n" in expression_statement */
-            $$ = new SymbolInfo((string)"\t"+(string)"for"+(string)"("+(string)$3->getName()+(string)$6->getName()+(string)$9->getName()+(string)")"+(string)$13->getName()+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: FOR LPAREN expression_statement expression_statement expression RPAREN statement" << "\n"  << endl;
-            log << (string)"for"+(string)"("+(string)$3->getName()+(string)$6->getName()+(string)$9->getName()+(string)")"+(string)$13->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)"for"+(string)"("+(string)$3->getName()+(string)$6->getName()+(string)$9->getName()+(string)")"+(string)$13->getName()+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | IF LPAREN expression embedded_exp RPAREN embedded_void statement %prec LOWER_THAN_ELSE {
-            /* NOTICE: conflict */
-            $$ = new SymbolInfo((string)"\t"+(string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: IF LPAREN expression RPAREN statement" << "\n"  << endl;
-            log << (string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | IF LPAREN expression embedded_exp RPAREN embedded_void statement ELSE statement {
-            /* NOTICE: conflict */
-            $$ = new SymbolInfo((string)"\t"+(string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)" else"+(string)$9->getName()+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: IF LPAREN expression RPAREN statement ELSE statement" << "\n"  << endl;
-            log << (string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)" else"+(string)$9->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)"if"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)" else"+(string)$9->getName()+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | WHILE LPAREN expression embedded_exp RPAREN embedded_void statement {
-            $$ = new SymbolInfo((string)"\t"+(string)"while"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: WHILE LPAREN expression RPAREN statement" << "\n"  << endl;
-            log << (string)"while"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)"while"+(string)"("+(string)$3->getName()+(string)")"+(string)$7->getName()+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
-        | PRINTLN LPAREN id RPAREN SEMICOLON {
-            $$ = new SymbolInfo((string)"\t"+(string)"println"+(string)"("+(string)$3->getName()+(string)")"+(string)";"+(string)"\n", "NON_TERMINAL");
+        | PRINTLN LPAREN ID RPAREN SEMICOLON {
             log << "At line no: " << line_count << " statement: PRINTLN LPAREN ID RPAREN SEMICOLON" << "\n"  << endl;
-            log << (string)"println"+(string)"("+(string)$3->getName()+(string)")"+(string)";" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"\t"+(string)"println"+(string)"("+(string)$3->getName()+(string)")"+(string)";"+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
     }
         | RETURN expression SEMICOLON {
-            $$ = new SymbolInfo((string)"\t"+(string)"return "+(string)$2->getName()+(string)";"+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " statement: RETURN expression SEMICOLON" << "\n"  << endl;
-            log << (string)"return "+(string)$2->getName()+(string)";" << "\n"  << endl;
 
-            /* void checking -> can not return void expression here */
-            if($2->get_Type() == "void") {
+            $$ = new SymbolInfo((string)"\t"+(string)"return "+(string)$2->getName()+(string)";"+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
+
+            // Can not return void expression here 
+            if($2->getReturnType() == "void") {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
-
-                /* type setting (if necessary) */
             } 
     }
-        ;
+    ;
 
 embedded_exp: {
             /* NOTICE: embedded action */
@@ -603,7 +645,6 @@ embedded_exp: {
         ;	
 
 embedded_void: {
-            /* NOTICE: embedded action */
             
             /* void checking  */
             if(type_final == "void") {
@@ -611,89 +652,93 @@ embedded_void: {
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
 
-                /* type setting (if necessary) */
             } 
     }
         ;	
 	  
 expression_statement: SEMICOLON {
-            $$ = new SymbolInfo((string)"\t"+(string)";"+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " expression_statement: SEMICOLON" << "\n"  << endl;
-            log << ";" << "\n"  << endl;
 
-            /* type setting -> NOTICE */
-            $$->set_Type("int");
+            $$ = new SymbolInfo((string)"\t"+(string)";"+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
+
+            // type setting -> **************************
+            $$->setReturnType("int");
             type = "int";
     }		
         | expression SEMICOLON {
-            $$ = new SymbolInfo((string)"\t"+(string)$1->getName()+(string)";"+(string)"\n", "NON_TERMINAL");
             log << "At line no: " << line_count << " expression_statement: expression SEMICOLON" << "\n"  << endl;
-            log << (string)$1->getName()+(string)";" << "\n"  << endl;
 
-           /* type setting */ 
-           $$->set_Type($1->get_Type());
-           type = $1->get_Type();
+            $$ = new SymbolInfo((string)"\t"+(string)$1->getName()+(string)";"+(string)"\n", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
+
+           // type setting -> **************************
+           $$->setReturnType($1->getReturnType());
+           type = $1->getReturnType();
     }
-        ;
+    ;
 	  
-variable: id {
-            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
+variable: ID {
             log << "At line no: " << line_count << " variable: ID" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;           
+
+            $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;         
 
             /* declaration checking & type setting */
-            SymbolInfo* temp = symbolTable->lookUpAll($1->getName());
+            SymbolInfo* temp = symbolTable->Lookup($1->getName());
 
             if(temp == NULL) {
                 error << "Error at line no: " << line_count << " undeclared variable " << $1->getName() << "\n" << endl;
                 error_count++;
-
-                $$->set_Type("float");  // NOTICE: by default, undeclared variables are of float type
-            } else {
-                if(temp->get_Type() != "void") {
-                    $$->set_Type(temp->get_Type());
-                } else {
-                    $$->set_Type("float");  //matching function found with return type void
+                
+                //**********************************************************************************
+                $$->setType("float");  // NOTICE: by default, undeclared variables are of float type
+            } 
+            else { //Variable previously declared
+                if(temp->getType() != "void") {
+                    $$->setType(temp->getType()); //void type checking
+                } 
+                else {
+                    $$->setType("float");  //matching function found with return type void
                 }
             }
 
-            /* checking whether it is id or not */
-            if((temp!=NULL) && (temp->get_arrSize()!=-1)) {
+            /* checking whether it is ID or not */
+            if((temp!=NULL) && (temp->getArraySize()!=-1)) {
                 error << "Error at line no: " << line_count << " type mismatch(not variable)" << "\n" << endl;
                 error_count++;
             }
     }
         | id LTHIRD expression RTHIRD {
-            /* array */
-            $$ = new SymbolInfo((string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]", "NON_TERMINAL");
             log << "At line no: " << line_count << " variable: ID LTHIRD expression RTHIRD" << "\n"  << endl;
-            log << (string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)"["+(string)$3->getName()+(string)"]", "NON_TERMINAL");
+            log << $$->getName() << "\n"  << endl;
 
             /* declaration checking & type setting */
-            SymbolInfo* temp = symbolTable->lookUpAll($1->getName());
+            SymbolInfo* temp = symbolTable->Lookup($1->getName());
 
             if(temp == NULL) {
                 error << "Error at line no: " << line_count << " undeclared variable " << $1->getName() << "\n" << endl;
                 error_count++;
 
-                $$->set_Type("float");  // NOTICE: by default, undeclared variables are of float type
+                $$->setType("float");  // NOTICE: by default, undeclared variables are of float type
             } else {
-                if(temp->get_Type() != "void") {
-                    $$->set_Type(temp->get_Type());
+                if(temp->getType() != "void") {
+                    $$->setType(temp->getType());
                 } else {
-                    $$->set_Type("float");  //matching function found with return type void
+                    $$->setType("float");  //matching function found with return type void
                 }
             }
 
             /* checking whether it is array or not */
-            if((temp!=NULL) && (temp->get_arrSize()<=-1)) {
+            if((temp!=NULL) && (temp->getArraySize() < 0)) {
                 error << "Error at line no: " << line_count << " type mismatch(not array)" << "\n" << endl;
                 error_count++;
             }
 
             /* semantic analysis (array index checking)  */
-            if($3->get_Type() != "int") {
-                /* non-integer (floating point) index for array */
+            if($3->getType() != "int") {
                 error << "Error at line no: " << line_count << " non-integer array index" << "\n" << endl;
                 error_count++;
             }            
@@ -703,8 +748,6 @@ variable: id {
                 /* void function call within expression */
                 error << "Error at line no: " << line_count << " void function called within expression" << "\n" << endl;
                 error_count++;
-
-                /* type setting (if necessary) */
             } 
     }
         ;
@@ -712,7 +755,7 @@ variable: id {
 expression: logic_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " expression: logic_expression" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required -> NOTICE: think about void function */
             $$->set_Type($1->get_Type());
@@ -721,7 +764,7 @@ expression: logic_expression {
         | variable ASSIGNOP logic_expression {
             $$ = new SymbolInfo((string)$1->getName()+(string)" = "+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " expression: variable ASSIGNOP logic_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)" = "+(string)$3->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
             if($3->get_Type() == "void") {
@@ -748,7 +791,7 @@ expression: logic_expression {
 logic_expression: rel_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " logic_expression: rel_expression" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required */
             $$->set_Type($1->get_Type());
@@ -756,7 +799,7 @@ logic_expression: rel_expression {
         | rel_expression LOGICOP rel_expression {
             $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " logic_expression: rel_expression LOGICOP rel_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName()+(string)$3->getName() << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) might be required */
 
@@ -785,7 +828,7 @@ logic_expression: rel_expression {
 rel_expression: simple_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " rel_expression: simple_expression" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis might be required */
             $$->set_Type($1->get_Type());
@@ -793,7 +836,7 @@ rel_expression: simple_expression {
 		| simple_expression RELOP simple_expression	{
             $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " rel_expression: simple_expression RELOP simple_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName()+(string)$3->getName() << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) might be required */
 
@@ -822,7 +865,7 @@ rel_expression: simple_expression {
 simple_expression: term {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " simple_expression: term" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl; 
 
             /* type setting  */
             $$->set_Type($1->get_Type());
@@ -830,7 +873,7 @@ simple_expression: term {
         | simple_expression ADDOP term {
             $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " simple_expression: simple_expression ADDOP term" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName()+(string)$3->getName() << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting) required  */
 
@@ -865,7 +908,7 @@ simple_expression: term {
 term: unary_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " term: unary_expression" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting  */
             $$->set_Type($1->get_Type());
@@ -873,7 +916,7 @@ term: unary_expression {
         |  term MULOP unary_expression {
             $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName()+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " term: term MULOP unary_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName()+(string)$3->getName() << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (type-casting, mod-operands checking) required */
 
@@ -914,7 +957,7 @@ term: unary_expression {
 unary_expression: ADDOP unary_expression {
             $$ = new SymbolInfo((string)$1->getName()+(string)$2->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " unary_expression: ADDOP unary_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName() << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
             if($2->get_Type() == "void") {
@@ -932,7 +975,7 @@ unary_expression: ADDOP unary_expression {
         | NOT unary_expression {
             $$ = new SymbolInfo((string)"!"+(string)$2->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " unary_expression: NOT unary_expression" << "\n"  << endl;
-            log << (string)"!"+(string)$2->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking */
             if($2->get_Type() == "void") {
@@ -949,7 +992,7 @@ unary_expression: ADDOP unary_expression {
         | factor {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " unary_expression: factor" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type($1->get_Type());
@@ -959,7 +1002,7 @@ unary_expression: ADDOP unary_expression {
 factor: variable {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: variable" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type($1->get_Type());
@@ -967,7 +1010,7 @@ factor: variable {
         | id LPAREN argument_list RPAREN {
             $$ = new SymbolInfo((string)$1->getName()+(string)"("+(string)$3->getName()+(string)")", "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: ID LPAREN argument_list RPAREN" << "\n"  << endl;
-            log << (string)$1->getName()+(string)"("+(string)$3->getName()+(string)")" << "\n"  << endl;
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting -> NOTICE: semantic analysis (matching argument_list with parameter_list) required */
             SymbolInfo* temp = symbolTable->lookUpAll($1->getName());
@@ -1027,7 +1070,7 @@ factor: variable {
         | LPAREN expression RPAREN {
             $$ = new SymbolInfo((string)"("+(string)$2->getName()+(string)")", "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: LPAREN expression RPAREN" << "\n"  << endl;
-            log << (string)"("+(string)$2->getName()+(string)")" << "\n"  << endl;
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
             if($2->get_Type() == "void") {
@@ -1045,7 +1088,7 @@ factor: variable {
         | CONST_INT {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: CONST_INT" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type("int");
@@ -1053,7 +1096,7 @@ factor: variable {
         | CONST_FLOAT {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: CONST_FLOAT" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type("float");
@@ -1061,7 +1104,7 @@ factor: variable {
         | variable INCOP {
             $$ = new SymbolInfo((string)$1->getName()+(string)"++", "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: variable INCOP" << "\n"  << endl;
-            log << (string)$1->getName()+(string)"++" << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type($1->get_Type());
@@ -1069,7 +1112,7 @@ factor: variable {
         | variable DECOP {
             $$ = new SymbolInfo((string)$1->getName()+(string)"--", "NON_TERMINAL");
             log << "At line no: " << line_count << " factor: variable DECOP" << "\n"  << endl;
-            log << (string)$1->getName()+(string)"--" << "\n"  << endl; 
+            log << $$->getName() << "\n"  << endl;
 
             /* type setting */
             $$->set_Type($1->get_Type());
@@ -1079,20 +1122,20 @@ factor: variable {
 argument_list: arguments {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " argument_list: arguments" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
     }
         | {
             /* NOTICE: epsilon-production */
             $$ = new SymbolInfo("", "NON_TERMINAL");
             log << "At line no: " << line_count << " argument_list: <epsilon-production>" << "\n"  << endl;
-            log << "" << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
     }
         ;
 	
 arguments: arguments COMMA logic_expression {
             $$ = new SymbolInfo((string)$1->getName()+(string)", "+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " arguments: arguments COMMA logic_expression" << "\n"  << endl;
-            log << (string)$1->getName()+(string)", "+(string)$3->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
             if($3->get_Type() == "void") {
@@ -1110,7 +1153,7 @@ arguments: arguments COMMA logic_expression {
         | logic_expression {
             $$ = new SymbolInfo($1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " arguments: logic_expression" << "\n"  << endl;
-            log << $1->getName() << "\n"  << endl;  
+            log << $$->getName() << "\n"  << endl;
 
             /* void checking  */
             if($1->get_Type() == "void") {
@@ -1125,7 +1168,7 @@ arguments: arguments COMMA logic_expression {
             /* keeping track of encountered argument */
             arg_list.push_back($1->get_Type());
     }
-        ;
+    ;
  
 
 %%
