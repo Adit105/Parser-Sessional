@@ -10,8 +10,8 @@ public:
     Parameter(string Name, string Type){
         name = Name; type = Type;
     }
-    Parameter(string Name){
-        name = Name; type = "";
+    Parameter(string Type){
+        name = ""; type = Type;
     }
 
     //Setters Getters
@@ -66,7 +66,7 @@ public:
     SymbolInfo* getNext(){ return Next; }
 
     void setReturnType(string rType){ returnType = rType; }
-    string getReturnType() { return rType; }
+    string getReturnType() { return returnType; }
 
     void setArraySize(int aSize) { arraySize = aSize; }
     int getArraySize() { return arraySize; }

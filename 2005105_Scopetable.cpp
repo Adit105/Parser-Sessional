@@ -205,12 +205,21 @@ public:
         return false;
     }
 
-    bool Lookup(string name){
-
-        int hashValue = sdbmHashFunction(name);
-        if(this->lookUpElementAtScopeTable(hashValue, name)) return true;
+    bool Insert(SymbolInfo* &newSymbolInfo){
+        
+        int hashValue = sdbmHashFunction(newSymbolInfo->getName());
+        if(this->setAtScopeTable(hashValue, newSymbolInfo)) return true;
         
         return false;
+    }
+
+    SymbolInfo* Lookup(string name){
+
+        int hashValue = sdbmHashFunction(name);
+        SymbolInfo* lookupNode = this->lookUpElementAtScopeTable(hashValue, name);
+        if(lookupNode) return lookupNode;
+        
+        return NULL;
     }
 
     bool Delete(string name){

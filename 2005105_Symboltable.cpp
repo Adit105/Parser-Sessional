@@ -79,22 +79,26 @@ class SymbolTable{
         return currentScopeTable->Insert(name, type);
     }
 
+    bool Insert(SymbolInfo* &newSymbolInfo){
+        return currentScopeTable->Insert(newSymbolInfo);
+    }
+
     bool Delete(string name){
         return currentScopeTable->Delete(name);
     }
 
-    bool Lookup(string name){
+    SymbolInfo* Lookup(string name){
 
         ScopeTable* lookupTable = currentScopeTable;
         
         while(lookupTable){
-            bool found = lookupTable->Lookup(name);
-            if(found) return true;
+            SymbolInfo* lookupNode = lookupTable->Lookup(name);
+            if(lookupNode) return lookupNode;
             else lookupTable = lookupTable->getParentScopeTable();
         }
 
         //outstream<<"'"<<name<<"' not found in any of the ScopeTables"<<endl;
-        return false;
+        return NULL;
     }
 
     void printCurrentScopeTable(ofstream &outstream){
