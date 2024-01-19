@@ -39,8 +39,8 @@ struct var{
 
 vector<var> var_list;  // for identifier(variable, array) insertion into symbolTable
 
-Parameter temp_parameter;
-vector<Parameter> param_list;  // parameter list for function declaration, definition
+Parameter tempParameter; //Holds parameter temporarily before pushing into parameter List
+vector<Parameter> parameterList;  // parameter list for identifiers such as function declaration, definition
 
 vector<string> arg_list;  // argument list for function call
 
@@ -77,7 +77,7 @@ void insertFunction(string Type, string Name, int FuncDecDefBySize) {
     symbolInfo->setReturnType(Type);  // setting return type of function
     symbolInfo->setArraySize(FuncDecDefBySize);
 
-    for(Parameter p : param_list){
+    for(Parameter p : parameterList){
         symbolInfo->addToParameterList(p);
     }
 
@@ -147,21 +147,23 @@ unit: var_declaration {
     }
     ;
      
-func_declaration: type_specifier id embedded LPAREN parameter_list RPAREN embedded_out_dec SEMICOLON {
+func_declaration: type_specifier ID embedded LPAREN parameter_list RPAREN embedded_out_dec SEMICOLON {
         log << "At line no: " << line_count << " func_declaration: type_specifier ID LPAREN parameter_list RPAREN SEMICOLON" << "\n"  << endl;
 
         $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
         log << $$->getName() << endl;
 
-        param_list.clear();
+        name = (string)$2->getName();
+        parameterList.clear();
     }
-    | type_specifier id embedded LPAREN RPAREN embedded_out_dec SEMICOLON {
+    | type_specifier ID embedded LPAREN RPAREN embedded_out_dec SEMICOLON {
         log << "At line no: " << line_count << " func_declaration: type_specifier ID LPAREN RPAREN SEMICOLON" << "\n"  << endl;
 
         $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
         log << $$->getName() << endl;
 
-        param_list.clear();
+        name = (string)$2->getName();
+        parameterList.clear();
     }
     ;
 		 
@@ -188,45 +190,45 @@ embedded: {
             type_final = type;
             name_final = name;
     }
-        ;	
+    ;	
 
 embedded_out_dec: {
-            /* NOTICE: embedded action */
-            SymbolInfo* temp = symbolTable->lookUpAll(name_final);
 
-            if(temp != NULL) {
-                error << "Error at line no: " << line_count << " multiple declaration of " << name_final << "\n" << endl;
-                error_count++;
-            } else {
-                /* inserting function declaration in symbolTable */
-                insertFunction(type_final, name_final, -2);
-            }
-    }
-        ;		
-
-embedded_out_def: {
-            /* NOTICE: embedded action */
             SymbolInfo* lookupNode = symbolTable->Lookup(name_final);
 
-            if(lookupNode == NULL) {
-                /* inserting function definition in symbolTable */
+            if(lookupNode == NULL){ //Not previously declared/defined
+                //Inserting into symbolTable, -2 denoting function declaration
+                insertFunction(type_final, name_final, -2); 
+            }
+            else{//Previously declared
+                error << "Error at line no: " << line_count << " multiple declaration of " << name_final << "\n" << endl;
+                error_count++;
+            }
+    }
+    ;		
+
+embedded_out_def: {
+
+            SymbolInfo* lookupNode = symbolTable->Lookup(name_final);
+
+            if(lookupNode == NULL) { //Not previously declared/defined
+                //Inserting into symbolTable, -3 denoting function definition
                 insertFunction(type_final, name_final, -3);
             } 
 
             else if(lookupNode->getArraySize() == -1) {
-                /* function declaration not found */
+                /* Previously declared variable found */
                 error << "Error at line no: " << line_count << " variable with name " << name_final << " declared earlier\n" << endl;
                 error_count++;
             }
 
             else if(lookupNode->getArraySize() == -3) {
-                /* function declaration not found */
+                /* Previously defined function found */
                 error << "Error at line no: " << line_count << " multiple definition of " << name_final << "\n" << endl;
                 error_count++;
             } 
 
-            else {
-                /* function declaration with similar name found */
+            else {/* Previously declared function found, so no problem */
 
                 /* Checking consistencies within declaration and definition*/
                 if(lookupNode->getReturnType() != type_final) {
@@ -234,38 +236,45 @@ embedded_out_def: {
                     error << "Error at line no: " << line_count << " inconsistent function definition with its declaration for " << name_final << "\n" << endl;
                     error_count++;
 
-                } else if(lookupNode->getParameterListSize()==1 && param_list.size()==0 && lookupNode->getParameter(0).getType()=="void") {
-                    /* parameter list matched */
-                    lookupNode->setArraySize(-3);  // NOTICE: given function declaration has a matching definition, so it can be called
+                } 
 
-                } else if(lookupNode->getParameterListSize()==0 && param_list.size()==1 && param_list[0].getType()=="void") {
-                    /* parameter list matched */
+                //Two cases for void param**
+                //Void param provided in declaration, no param provided in definition, no problem
+                else if(lookupNode->getParameterListSize()==1 && parameterList.size()==0 && lookupNode->getParameter(0).getType()=="void") {
                     lookupNode->setArraySize(-3);  // NOTICE: given function declaration has a matching definition, so it can be called
+                } 
+                //No param provided in declaration, void param provided in definition, no problem
+                else if(lookupNode->getParameterListSize()==0 && parameterList.size()==1 && parameterList[0].getType()=="void") {
+                    lookupNode->setArraySize(-3);  // NOTICE: given function declaration has a matching definition, so it can be called
+                } 
+                //Two cases for void param**
 
-                } else if(lookupNode->getParameterListSize() != param_list.size()) {
-                    /* parameter list size not matching */
+                //Parameter list size between declaration and definition not matching 
+                else if(lookupNode->getParameterListSize() != parameterList.size()) {
                     error << "Error at line no: " << line_count << " inconsistent function definition with its declaration for " << name_final << "\n" << endl;
                     error_count++;
+                } 
 
-                } else {
+                //Parameter list size between declaration and definiton matching, so now we match params' types
+                else {
 
-                    bool validParameterList = true;
+                    bool validParameterList = true; //Valid if all parameters are valid
 
-                    /* checking parameter list size */
-                    if(lookupNode->getParameterListSize() == param_list.size()) {
-                        /* parameter list matched */
-                        lookupNode->set_arrSize(-3);  // NOTICE: given function declaration has a matching definition, so it can be called
+                    // Checking parameter list size 
+                    if(lookupNode->getParameterListSize() == parameterList.size()) {
+                        //Size matched, set identifier as function defintion
+                        lookupNode->setArraySize(-3);
                     } else {
-                        /* parameter list not matched */
+                        //Size not matched, function definition not valid
                         validParameterList = false;
                     }
 
-                    /* checking parameter type */
-                    if(validParameterList){
-                        for(int i=0; i<param_list.size(); i++) {
-                            if(lookupNode->getParameter(i).getType() != param_list[i].getType()) {
-                                validParameterList = false;
-                                break;
+                    // Checking params' types
+                    if(validParameterList){ //If sizes matched, only then we check types
+                        for(int i=0; i<parameterList.size(); i++) {
+                            if(lookupNode->getParameter(i).getType() != parameterList[i].getType()) {
+                                validParameterList = false; //If any of the param's type does not match
+                                break;                      //function definition is invalid
                             }
                         }
                     }
@@ -280,17 +289,17 @@ embedded_out_def: {
     }
     ;	
 
-parameter_list: parameter_list COMMA type_specifier id {
+parameter_list: parameter_list COMMA type_specifier ID {
             log << "At line no: " << line_count << " parameter_list: parameter_list COMMA type_specifier ID" << "\n"  << endl;
 
             $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName()+(string)" "+(string)$4->getName(), "NON_TERMINAL");
             log << $$->getName() << endl;
 
-            /* adding parameter to parameter list */
-            temp_parameter.getType() = (string)$3->getName();
-            temp_parameter.getName() = (string)$4->getName();
+            //Adding parameter to list
+            tempParameter.setType((string)$3->getName());
+            tempParameter.setName((string)$4->getName());
 
-            param_list.push_back(temp_parameter);
+            parameterList.push_back(tempParameter);
     }
         | parameter_list COMMA type_specifier {
             log << "At line no: " << line_count << " parameter_list: parameter_list COMMA type_specifier" << "\n"  << endl;
@@ -298,11 +307,11 @@ parameter_list: parameter_list COMMA type_specifier id {
             $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName(), "NON_TERMINAL");
             log << $$->getName() << endl;
 
-            /* adding parameter to parameter list */
-            temp_parameter.getType() = (string)$3->getName();
-            temp_parameter.getName() = "";
+            //Adding parameter to list            
+            tempParameter.setType((string)$3->getName());
+            tempParameter.setName("");
 
-            param_list.push_back(temp_parameter);
+            parameterList.push_back(tempParameter);
     }
         | type_specifier id {
             log << "At line no: " << line_count << " parameter_list: type_specifier ID" << "\n"  << endl;
@@ -310,11 +319,11 @@ parameter_list: parameter_list COMMA type_specifier id {
             $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName(), "NON_TERMINAL");
             log << $$->getName() << endl;
 
-            /* adding parameter to parameter list */
-            temp_parameter.getType() = (string)$1->getName();
-            temp_parameter.getName() = (string)$2->getName();
+            //Adding parameter to list            
+            tempParameter.setType((string)$1->getName());
+            tempParameter.setName((string)$2->getName());
 
-            param_list.push_back(temp_parameter);
+            parameterList.push_back(tempParameter);
     }
         | type_specifier {
             log << "At line no: " << line_count << " parameter_list: type_specifier" << "\n"  << endl;
@@ -322,11 +331,11 @@ parameter_list: parameter_list COMMA type_specifier id {
             $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
             log << $$->getName() << endl;
 
-            /* adding parameter to parameter list */
-            temp_parameter.getType() = (string)$1->getName();
-            temp_parameter.getName() = "";
+            //Adding parameter to list
+            tempParameter.setType((string)$1->getName());
+            tempParameter.setName("");
 
-            param_list.push_back(temp_parameter);
+            parameterList.push_back(tempParameter);
     }
     ;
 
@@ -336,9 +345,9 @@ compound_statement: LCURL embedded_in statements RCURL {
             $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)$3->getName()+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
             log << $$->getName() << endl;
 
-            /* additional action */
+            //Printing all scopetables before exiting current scopetable as per offline requirement
             symbolTable->printAllScopeTable(log);
-            symbolTable->ExitScope(log);
+            symbolTable->ExitScope();
     }
     | LCURL embedded_in RCURL {
             log << "At line no: " << line_count << " compound_statement: LCURL RCURL" << "\n"  << endl;
@@ -346,9 +355,9 @@ compound_statement: LCURL embedded_in statements RCURL {
             $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)"\n"+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
             log << $$->getName() << endl;
 
-            /* additional action */
+            //Printing all scopetables before exiting current scopetable as per offline requirement
             symbolTable->printAllScopeTable(log);
-            symbolTable->ExitScope(log);
+            symbolTable->ExitScope();
     }
         ;
 
@@ -356,12 +365,17 @@ embedded_in: {
             /* NOTICE: embedded action */
             symbolTable->EnterScope();
 
-            /* add parameters (if exists) to symbolTable */
-            if(param_list.size()==1 && param_list[0].getType()=="void") {
-                /* only parameter is void */
-            } else {
+            /* If a new parameter list is applicable for new scope, we need to insert them into 
+            SymbolTable as identifiers (variable) */
 
-                for(Parameter p : param_list){
+            //No params, or void provided
+            if(parameterList.size()==1 && parameterList[0].getType()=="void") {
+                //No actions necessary
+            } 
+            //At least one non-void param provided
+            else {
+
+                for(Parameter p : parameterList){
                     temp_var.var_name = p.getName();
                     temp_var.var_size = -1; //Predefined for variables by designer
 
@@ -371,7 +385,7 @@ embedded_in: {
             }
 
             //Clearing parameter list for next usage
-            param_list.clear(); 
+            parameterList.clear(); 
     }
     ;
  		    
