@@ -18,11 +18,15 @@ int line_count = 1;  // NOTICE
 int error_count = 0;
 int scope_count = 1;
 
-SymbolTable *symbolTable;
-
 FILE* input;
 ofstream log;
 ofstream error;
+
+int scopeTablesSize = 10;
+
+//Root scopetable for global scope, with new SymbolTable
+ScopeTable* scopeTable = new ScopeTable(scopeTablesSize);
+SymbolTable* symbolTable = new SymbolTable(scopeTable, scopeTablesSize, logStream);
 
 /* auxiliary variables and structures and containers */
 string type, type_final;  // basially for function declaration-definition
@@ -131,19 +135,19 @@ unit: var_declaration {
     }
     ;
      
-     type specifier ID LPAREN parameter list RPAREN SEMICOLON
-
 func_declaration: type_specifier id embedded LPAREN parameter_list RPAREN embedded_out_dec SEMICOLON {
-        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
         log << "At line no: " << line_count << " func_declaration: type_specifier ID LPAREN parameter_list RPAREN SEMICOLON" << "\n"  << endl;
-        log << (string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)";" << "\n"  << endl;
+
+        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
+        log << $$->getName() << endl;
 
         param_list.clear();
     }
     | type_specifier id embedded LPAREN RPAREN embedded_out_dec SEMICOLON {
-        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
         log << "At line no: " << line_count << " func_declaration: type_specifier ID LPAREN RPAREN SEMICOLON" << "\n"  << endl;
-        log << (string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)";" << "\n"  << endl;
+
+        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)";"+(string)"\n"+(string)"\n", "NON_TERMINAL");
+        log << $$->getName() << endl;
 
         param_list.clear();
     }
@@ -153,12 +157,13 @@ func_definition: type_specifier id embedded LPAREN parameter_list RPAREN embedde
         log << "At line no: " << line_count << " func_definition: type_specifier ID LPAREN parameter_list RPAREN compound_statement" << "\n"  << endl;
 
         $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)$8->getName()+(string)"\n"+(string)"\n", "NON_TERMINAL");
-        log << (string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)$5->getName()+(string)")"+(string)$8->getName() << "\n"  << endl;
+        log << $$->getName() << endl;
     }
     | type_specifier id embedded LPAREN RPAREN embedded_out_def compound_statement {
-        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)$7->getName()+(string)"\n"+(string)"\n", "NON_TERMINAL");
         log << "At line no: " << line_count << " func_definition: type_specifier ID LPAREN RPAREN compound_statement" << "\n"  << endl;
-        log << (string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)$7->getName() << "\n"  << endl;
+
+        $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName()+(string)"("+(string)")"+(string)$7->getName()+(string)"\n"+(string)"\n", "NON_TERMINAL");
+        log << $$->getName() << endl;
     }
     ;		
 
@@ -242,9 +247,10 @@ embedded_out_def: {
         ;	
 
 parameter_list: parameter_list COMMA type_specifier id {
-            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName()+(string)" "+(string)$4->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " parameter_list: parameter_list COMMA type_specifier ID" << "\n"  << endl;
-            log << (string)$1->getName()+(string)", "+(string)$3->getName()+(string)$4->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName()+(string)" "+(string)$4->getName(), "NON_TERMINAL");
+            log << $$->getName() << endl;
 
             /* adding parameter to parameter list */
             temp_parameter.param_type = (string)$3->getName();
@@ -253,9 +259,10 @@ parameter_list: parameter_list COMMA type_specifier id {
             param_list.push_back(temp_parameter);
     }
         | parameter_list COMMA type_specifier {
-            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " parameter_list: parameter_list COMMA type_specifier" << "\n"  << endl;
-            log << (string)$1->getName()+(string)", "+(string)$3->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)","+(string)$3->getName(), "NON_TERMINAL");
+            log << $$->getName() << endl;
 
             /* adding parameter to parameter list */
             temp_parameter.param_type = (string)$3->getName();
@@ -264,9 +271,10 @@ parameter_list: parameter_list COMMA type_specifier id {
             param_list.push_back(temp_parameter);
     }
         | type_specifier id {
-            $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " parameter_list: type_specifier ID" << "\n"  << endl;
-            log << (string)$1->getName()+(string)$2->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName()+(string)" "+(string)$2->getName(), "NON_TERMINAL");
+            log << $$->getName() << endl;
 
             /* adding parameter to parameter list */
             temp_parameter.param_type = (string)$1->getName();
@@ -275,9 +283,10 @@ parameter_list: parameter_list COMMA type_specifier id {
             param_list.push_back(temp_parameter);
     }
         | type_specifier {
-            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
             log << "At line no: " << line_count << " parameter_list: type_specifier" << "\n"  << endl;
-            log << (string)$1->getName() << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)$1->getName(), "NON_TERMINAL");
+            log << $$->getName() << endl;
 
             /* adding parameter to parameter list */
             temp_parameter.param_type = (string)$1->getName();
@@ -288,28 +297,30 @@ parameter_list: parameter_list COMMA type_specifier id {
         ;
 
 compound_statement: LCURL embedded_in statements RCURL {
-            $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)$3->getName()+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
             log << "At line no: " << line_count << " compound_statement: LCURL statements RCURL" << "\n"  << endl;
-            log << (string)"{ \n"+(string)$3->getName()+(string)"\n}" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)$3->getName()+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
+            log << $$->getName() << endl;
 
             /* additional action */
-            symbolTable->printAll(log);
-            symbolTable->exitScope(log);
+            symbolTable->printAllScopeTable(log);
+            symbolTable->ExitScope(log);
     }
         | LCURL embedded_in RCURL {
-            $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)"\n"+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
             log << "At line no: " << line_count << " compound_statement: LCURL RCURL" << "\n"  << endl;
-            log << (string)"{ "+(string)"}" << "\n"  << endl;
+
+            $$ = new SymbolInfo((string)"{ "+(string)"\n"+(string)"\n"+(string)"}"+(string)"\n", "NON_TERMINAL");  // NOTICE
+            log << $$->getName() << endl;
 
             /* additional action */
-            symbolTable->printAll(log);
-            symbolTable->exitScope(log);
+            symbolTable->printAllScopeTable(log);
+            symbolTable->ExitScope(log);
     }
         ;
 
 embedded_in: {
             /* NOTICE: embedded action */
-            symbolTable->enterScope(scope_count++, 7, log);   // #bucket_in_each_scopeTable = 7
+            symbolTable->EnterScope();
 
             /* add parameters (if exists) to symbolTable */
             if(param_list.size()==1 && param_list[0].param_type=="void") {
