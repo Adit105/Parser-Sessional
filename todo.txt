@@ -1,3 +1,23 @@
 Line 378 -> Handling variables
 Line 596 ->
 Line 755 ->
+
+29 logstream
+100 LOGICOP
+793 logic_expression
+794 logic_expression
+802 LOGICOP
+803 logic_expression
+803 LOGICOP
+1158 logic_expression
+1159 logic_expression
+1177 logic_expression
+1178 logic_expression
+1215 2005105_log
+1219 Log
+
+logStream -> 140
+LOGICOP -> 3
+logic_expression -> 11
+Log 
+2005105_log.txt

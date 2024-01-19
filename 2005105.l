@@ -243,10 +243,15 @@ LOGICOP ({AND_LOGIC_OP}|{OR_LOGIC_OP})
     yylval = (YYSTYPE) symbolInfo;
     return ADDOP;
 }
-{INCOP} {
+{INC} {
     SymbolInfo* symbolInfo = new  SymbolInfo(yytext, "INCOP");
     yylval = (YYSTYPE) symbolInfo;
     return INCOP;
+}
+{DEC} {
+    SymbolInfo* symbolInfo = new  SymbolInfo(yytext, "DECOP");
+    yylval = (YYSTYPE) symbolInfo;
+    return DECOP;
 }
 
 {MULOP} {

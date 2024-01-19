@@ -22,6 +22,11 @@ public:
     string getType() { return type; }
 }
 
+//In symbolInfo, all identifiers have the type = ID
+//Variables have arraySize = -1, function declarations = -2, definitions = -3
+//Arrays have their own arraySize, which is >= 0
+//Variable/array type, or function return type is stored in returnType;
+
 class SymbolInfo{
 
     string name;
