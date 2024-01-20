@@ -22,6 +22,90 @@ public:
     string getType() { return type; }
 }
 
+//For parse Tree, creating a class for the treeNodes
+//Indicates the part of the input file that matched a production rule
+class parseTreeNode{
+    int startLine; //line_count where the node started
+    int endLine; //line_count where the node ended
+
+    string name; //Actual part from the file that matched
+    string productionRule; //The rule that it matched with
+
+    vector<parseTreeNode*> childProductionList;
+
+    public:
+    parseTreeNode(int sl, int el, string Name, string pr){
+        startLine = sl; endLine = el;
+        name = Name; productionRule = pr;
+    }
+
+    //Setters getters
+    void setStartLine(int sl) { startLine = sl; }
+    int getStartLine() { return startLine; }
+
+    void setEndLine(int el) { endLine = el; }
+    int getEndLine() {return endLine; }
+
+    void setName(string Name) { name = Name; }
+    string getName() { return name; }
+
+    void setProductionRule(string pr) { productionRule = pr; }
+    string getProductionRule() { return productionRule; }
+
+    void setChildProductionList(vector<parseTreeNode*> list){ childProductionList = list; }
+    vector<parseTreeNode*> getChildProductionList() { return childProductionList; }
+
+    string getProduction_withLine(){
+        string productionLine = productionRule + "\t" + "<Line: " + startLine + "-" + endLine + ">" + "\n"; 
+        return productionLine;
+    }
+
+    string getName_withLine(){
+        string nameLine = name + "\t" + "<Line: " + startLine + ">" + "\n"; 
+        return nameLine;
+    }
+
+    void addToChildProductionList(parseTreeNode* &pNode){ childProductionList.push_back(pNode); }
+    parseTreeNode* getChildProduction(int index){ return childProductionList[index]; }
+
+    int getChildProductionListSize() { return childProductionList.size(); }
+    void clearChildProductionList() { childProductionList.clear(); }
+}
+
+class parseTree{
+    parseTreeNode *root;
+
+    parseTree(parseTreeNode* &Root){
+        root = Root;
+    }
+
+    parseTree() {}
+    void setRoot(parseTreeNode* &Root){ root = Root; }
+    parseTreeNode* getRoot() { return root; }
+
+    void printParseTree(){
+        recursivePrintParseTree(root, 0);
+    }
+
+    void recursivePrintParseTree(parseTreeNode* pNode, int spaceCount){
+
+        for(int i=0; i<spaceCount; i++){
+            cout<<" ";
+        }
+
+        cout<<pNode.getProduction_withLine()<<endl;
+
+        int childProductionListSize = pNode.getChildProductionListSize();
+        if(childProductionListSize > 0){
+            for(int i=0; i<childProductionListSize; i++){
+                recursivePrintParseTree(pNode.getChildProduction(i), spaceCount+1);
+            }
+        }
+
+        return;
+    }
+}
+
 //In symbolInfo, all identifiers have the type = ID
 //Variables have arraySize = -1, function declarations = -2, definitions = -3
 //Arrays have their own arraySize, which is >= 0
@@ -39,7 +123,7 @@ class SymbolInfo{
                       //Further used for separating variables(-1), function declarations(-2) and 
                       //function definitions(-3) in identifier group
 
-    vector<Parameter> parameterList;
+    vector<Parameter> parameterList; //For function identifiers
 
 public:
 
